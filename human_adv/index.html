@@ -1,0 +1,1017 @@
+<!DOCTYPE html>
+<html>
+<head>
+<title>My Task</title>
+<meta charset="UTF-8">
+<meta content='width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=0' name='viewport' />
+<style>
+
+
+
+.container {
+  margin: 0 auto;
+  padding-top: 0px;
+  padding-right: 30px;
+  padding-bottom: 2px;
+  padding-left: 30px;
+  width: 90%;
+  color: #222;
+  background: grey;
+  border: 0px;
+
+}
+
+
+
+.slick-slide {
+   height:190px;
+   overflow: hidden;
+
+}
+
+.slick-slide img {
+   height:190px;
+
+}
+
+.flex-container {
+  padding: 0;
+  margin: 0;
+  list-style: none;
+
+  display: -webkit-box;
+  display: -moz-box;
+  display: -ms-flexbox;
+  display: -webkit-flex;
+  display: flex;
+
+  -webkit-flex-flow: row wrap;
+  justify-content: space-around;
+}
+
+.flex-item {
+  background: tomato;
+  padding: 5px;
+  width: 200px;
+  height: 150px;
+  margin-top: 10px;
+
+  line-height: 150px;
+  color: white;
+  font-weight: bold;
+  font-size: 3em;
+  text-align: center;}
+
+</style>
+
+<script src="jsPsych-master/jspsych.js"></script>
+<script src="jsPsych-master/plugins/jspsych-html-keyboard-response.js"></script>
+<script src="jsPsych-master/plugins/jspsych-image-button-response.js"></script>
+<script src="jsPsych-master/plugins/jspsych-image-keyboard-response.js"></script>
+<script src="jsPsych-master/plugins/jspsych-external-html.js"></script>
+<script src="jsPsych-master/plugins/jspsych-survey-text.js"></script>
+
+<script src="https://ajax.googleapis.com/ajax/libs/jquery/3.3.1/jquery.min.js"></script>
+
+
+
+
+<script type="text/javascript" src="slick-1.8.1/slick/slick.min.js"></script>
+
+<script src="lightbox2-master/src/js/lightbox.js"></script>
+
+
+<link href="lightbox2-master/src/css/lightbox.css" rel="stylesheet">
+<link href="jsPsych-master/css/jspsych.css" rel="stylesheet" type="text/css"></link>
+<link rel="stylesheet" type="text/css" href="slick-1.8.1/slick/slick.css"/>
+<link rel="stylesheet" type="text/css" href="slick-1.8.1/slick/slick-theme.css"/>
+
+
+
+
+</head>
+<body></body>
+<script>
+
+
+function shuffle(array) {
+  var currentIndex = array.length, temporaryValue, randomIndex;
+
+  // While there remain elements to shuffle...
+  while (0 !== currentIndex) {
+
+    // Pick a remaining element...
+    randomIndex = Math.floor(Math.random() * currentIndex);
+    currentIndex -= 1;
+
+    // And swap it with the current element.
+    temporaryValue = array[currentIndex];
+    array[currentIndex] = array[randomIndex];
+    array[randomIndex] = temporaryValue;
+  }
+
+  //return array;
+}
+
+function saveData(name, data){
+  var xhr = new XMLHttpRequest();
+  xhr.open('POST', '../cgi-bin/write_data.php'); // 'write_data.php' is the path to the php file described above.
+  xhr.setRequestHeader('Content-Type', 'application/json');
+  xhr.send(JSON.stringify({filename: name, filedata: data}));
+}
+
+function p2_bonus(acc){
+  return (20*Math.max(acc-0.9,0));
+}
+
+function p1_bonus(acc){
+  let act_acc = Math.max(acc - 0.45, 0);
+  return (350*(Math.pow(act_acc,3))+75*(act_acc));
+}
+
+
+/* create timeline */
+var timeline = [];
+var y_train, y_test, y_adv;
+
+/* define welcome message trial */
+
+var check_consent = function(elem) {
+  if ($('#consent_checkbox').is(':checked')) {
+    return true;
+  }
+  else {
+    alert("If you wish to participate, you must check the box next to the statement 'I agree to participate in this study.'");
+    return false;
+  }
+  return false;
+};
+
+
+// declare the block.
+var trial = {
+  type:"external-html",
+  url: "external_page.html",
+  cont_btn: "start",
+  check_fn: check_consent
+};
+
+timeline.push(trial);
+
+
+
+var train_counter=0;
+var test_counter = -1;
+var num_test_images = 990;
+var num_train_images = 990;
+
+var reps_single_test = 20;
+var sets_test = 10;
+
+var reps_train = 10;
+var reps_test = reps_single_test*sets_test;
+var reps_adv = 0;
+var reps_noisy = 0;
+var reps_normal = 0;
+var reps_training_rem = reps_train;
+var y_response = Array.apply(null, Array(reps_test)).map(Number.prototype.valueOf,0);
+var y_actual = Array.apply(null, Array(reps_test)).map(Number.prototype.valueOf,0);
+var y_adv = Array.apply(null, Array(reps_test)).map(Number.prototype.valueOf,0);
+var x_type = Array.apply(null, Array(reps_test)).map(Number.prototype.valueOf,0);
+var img_ind = Array.apply(null, Array(reps_test)).map(Number.prototype.valueOf,0);
+
+var num_train = 15;
+var single_frame_num_images = 5;
+
+var html_string_A = "";
+var html_string_B = "";
+var html_string_C = "";
+
+var html_string_A_rot = "";
+var html_string_B_rot = "";
+var html_string_C_rot = "";
+
+var add_type = "normal";
+var part1_type = "/rotated";
+var part1_reference_text = "For reference, we were able to get an accuracy of 80% on part 1 after spending about 30 minutes in the learning phase, and about 20 seconds per test image.";
+var part2_reference_text = "For reference, we were able to get an accuracy of 99% on part 2 after spending about 3 minutes in the learning phase, and about 3 seconds per test image.";
+var parent_dir = "";
+
+var person_id = "empty";
+var hit_id = "empty";
+var assignment_id = "empty";
+var labind;
+var permind;
+/* define instructions trial */
+
+var summary_record = "";
+var num_correct_total=0;
+var num_correct_noisy=0;
+var num_correct_adv = 0;
+var num_correct_normal = 0;
+
+var num_correct_total2=0;
+var num_correct_noisy2=0;
+var num_correct_adv2 = 0;
+var num_correct_normal2 = 0;
+
+var num_done_part1 = 0;
+var num_done_part2 = 0;
+
+var num_cor_part1 = 0;
+var num_cor_part2 = 0;
+
+var recent_cor_part1 = 0;
+var recent_cor_part2 = 0;
+
+var turkerCode;
+var overall_accuracy;
+
+ var part1_bonus = 0;
+ var part2_bonus = 0;
+
+
+var turkInfo;
+
+var part1_start = {
+  type: "html-keyboard-response",
+  stimulus: function() {
+    var labsets = ["015","289","367","345"];
+    labind = 2*Math.floor(Math.random() * 1.99);
+    permind = Math.floor(Math.random() * 4.99);
+    parent_dir = "images_smooth/labels_"+labsets[labind]+"/perm"+String(permind);
+    //y_train = 1;
+    //y_test = 1;
+    //y_adv_target = 1;
+    $.getJSON(parent_dir+part1_type+'/train/train_y_dump.json',  function (data){y_train = data;});
+    $.getJSON(parent_dir+part1_type+'/test/test_y_dump.json',  function (data){y_test = data;});
+    $.getJSON(parent_dir+part1_type+'/test_01/test_01_y_dump.json',  function (data){y_adv_target = data;});
+
+    var turkInfo = jsPsych.turk.turkInfo();
+    counter1 = 200;
+    //person_id = Math.floor(Math.random() * 100000);
+    person_id = turkInfo.workerId;
+    hit_id = turkInfo.hitId;
+    assignment_id = turkInfo.assignmentId;
+
+    let tstamp1 = Math.floor(Date.now() / 1000);
+
+    saveData("attempts", tstamp1+", "+person_id+", "+hit_id+"\r\n");
+
+    return "Welcome to the task. This task is in two parts. Press 'n' on your keyboard to begin part 1.";},
+  choices: ['n']
+};
+timeline.push(part1_start);
+
+var instructions = {
+  type: "html-keyboard-response",
+  stimulus: function() {
+
+    img1 = parent_dir+part1_type+"/train/train_"+String(counter1)+".png";
+  return "<p><strong>Part 1</strong>: In this part of the task, you will be shown some images, and your job is to label them to the best of your abilities. The label of" +
+      " each image is A, B or C. This part is in two phases. </p><p>In phase 1 (learning phase), you will be shown images along with labels, and you should try to" +
+      " associate the patterns in the images with labels.</p>" +
+      "<p>In phase 2 (testing phase), you will be shown images without label, and you need to predict the right label based on what you " +
+      " learnt in phase 1. </p><p> Sample image:</p>" +
+      "<img src="+img1+"></img>" +
+      "<p>Label: <strong>"+String.fromCharCode(65+y_train[counter1])+"</strong></p>";},
+  choices: ['n'],
+  prompt: "<p><br>Press 'n' on your keyboard to begin phase 1 (learning)</p>",
+  post_trial_gap: 0
+};
+timeline.push(instructions);
+
+var part1_train_instructions = {
+  type: "html-keyboard-response",
+  stimulus: "<p><u>Phase 1 (learning) Instructions</u></p>"+
+  "<div align='left'><ol><li>In this phase, you will be shown images along with labels, and you should try to" +
+  " associate the patterns in the images with labels. We recommend that you spend sufficient time on this phase as it will help improve your performance in phase 2 (testing). Remember, we give performance based bonus for this task! </li><br>" +
+  "<li>It may also be helpful to take down some notes so that you don't forget the mapping between patterns and labels.</li><br>"+
+  "<li>You will also be shown these images in between the test phase to reinforce what you learnt in phase 1.</li><br>"+
+  "<li>"+ part1_reference_text +"</li></ol></div>"+
+  "<p>Press 'n' to begin phase 1</p>",
+  choices: ['n']
+};
+timeline.push(part1_train_instructions);
+
+
+
+var train_procedure = {
+  type: "html-keyboard-response",
+  timeline: [{
+  stimulus: function() {
+
+
+    counter1 = train_counter;
+    counter2 = train_counter+1;
+    train_counter+=2;
+    var instr = "<div align = 'left'><ol><li> We recommend you spend sufficient time on this page. It may also be helpful to take down some notes so that you don't forget the mapping between patterns and labels.</li><br><li>There are "+num_train+" images for each label ("+String(num_train*3)+" in total). Click on arrows to see more images. Click on any image to zoom in. Zoom out your browser window if you see cropped images.</li><br><li>You will also be shown these images in between the test phase to reinforce what you learnt in this phase.</li></ol></div>"
+    html_string_A = "<div class = 'container'>Label: <strong>A</strong><div class='multiple-pics' style='margin-top: -40px'>"
+    html_string_B = "<div class = 'container'> Label: <strong>B</strong><div class='multiple-pics' style='margin-top: -40px'>"
+    html_string_C = "<div class = 'container'> Label: <strong>C</strong><div class='multiple-pics' style='margin-top: -40px'>"
+
+    html_string_A_rot += "<div class = 'container'> Label: <strong>A</strong><div class='multiple-pics' style='margin-top: -40px'>";
+    html_string_B_rot += "<div class = 'container'> Label: <strong>B</strong><div class='multiple-pics' style='margin-top: -40px'>";
+    html_string_C_rot += "<div class = 'container'> Label: <strong>C</strong><div class='multiple-pics' style='margin-top: -40px'>";
+
+    for (i=0;i<num_train;i++){
+
+      counter1 = Math.floor(Math.random() * num_train_images);
+      while(y_train[counter1]!=0){
+        counter1 = Math.floor(Math.random() * num_train_images);
+      }
+
+      counter2 = Math.floor(Math.random() * num_train_images);
+      while(y_train[counter2]!=1){
+        counter2 = Math.floor(Math.random() * num_train_images);
+      }
+
+      counter3 = Math.floor(Math.random() * num_train_images);
+      while(y_train[counter3]!=2){
+        counter3 = Math.floor(Math.random() * num_train_images);
+      }
+
+      img1 = parent_dir+part1_type+"/train/train_"+String(counter1)+".png";
+      img2 = parent_dir+part1_type+"/train/train_"+String(counter2)+".png";
+      img3 = parent_dir+part1_type+"/train/train_"+String(counter3)+".png";
+
+      html_string_A += "<div><a href="+img1+" data-lightbox='labA' data-title='Label: A'><img src="+img1+"></img></a></div>";
+      html_string_B += "<div><a href="+img2+" data-lightbox='labB' data-title='Label: B'><img src="+img2+"></img></a></div>";
+      html_string_C += "<div><a href="+img3+" data-lightbox='labC' data-title='Label: C'><img src="+img3+"></img></a></div>";
+
+      img1_rot = parent_dir+"/"+add_type+"/train/train_"+String(counter1)+".png";
+      img2_rot = parent_dir+"/"+add_type+"/train/train_"+String(counter2)+".png";
+      img3_rot = parent_dir+"/"+add_type+"/train/train_"+String(counter3)+".png";
+
+      html_string_A_rot += "<div><a href="+img1_rot+" data-lightbox='labA' data-title='Label: A'><img src="+img1_rot+" ></img></a></div>";
+      html_string_B_rot += "<div><a href="+img2_rot+" data-lightbox='labB' data-title='Label: B'><img src="+img2_rot+" ></img></a></div>";
+      html_string_C_rot += "<div><a href="+img3_rot+" data-lightbox='labC' data-title='Label: C'><img src="+img3_rot+" ></img></a></div>";
+
+    }
+
+    html_string_A += "</div></div>";
+    html_string_B += "</div></div>";
+    html_string_C += "</div></div>";
+
+    html_string_A_rot += "</div></div>";
+    html_string_B_rot += "</div></div>";
+    html_string_C_rot += "</div></div>";
+
+    return instr+html_string_A + html_string_B + html_string_C + "<p>Press 'n' to start phase 2 (testing phase).</p>";
+
+
+
+  }}],
+  choices: ['n'],
+  on_load: function(){
+    $('.multiple-pics').slick({
+      infinite: false,
+      draggable: true,
+      slidesToShow: single_frame_num_images,
+      slidesToScroll: single_frame_num_images,
+      arrows: true
+    });
+  },
+  repetitions: 1
+}
+
+//timeline.push(train_procedure);
+
+/*var train_procedure_new = {
+  type: "image-keyboard-response",
+  data:{
+  exp_type:"normal"},
+  timeline: [{
+  stimulus: function() {
+  test_counter+=1;
+    counter = Math.floor(Math.random() * num_test_images);
+    image_type = Math.floor(Math.random() * 3);
+    img_ind[test_counter] = counter;
+    y_actual[test_counter] = y_test[counter];
+    x_type[test_counter] = image_type;
+
+    if (image_type==0){//Normal image
+    reps_normal+=1;
+    return parent_dir+part1_type+"/test/test_"+String(counter)+".png";
+    }
+    else if(image_type==1){//Adversarial image
+    reps_adv+=1;
+    y_adv[test_counter] = y_adv_target[counter];
+    return parent_dir+part1_type+"/test_01/test_01_"+String(counter)+".png";
+    }
+    else
+    {//Noisy image
+    reps_noisy+=1;
+    return parent_dir+part1_type+"/test_02/test_02_"+String(counter)+".png";
+    }
+
+  }}],
+  prompt: function() {return "<p>Press A,B or C to indicate the label for this image.</p><p>"+(reps_test-test_counter-1)+" images left to be labelled.</p> <p>(This image may take some time to load if the internet connection is slow.)</p>"},
+  choices: ['A', 'B', 'C'],
+  repetitions: 1000,
+
+
+}*/
+
+
+
+var part1_intermission = {
+  type: "html-keyboard-response",
+  stimulus: "<p><u>Phase 2 (Testing) Instructions</u></p>"+
+  "<p>Phase 1 (learning) ends here. In phase 2, you will be shown "+reps_test+" images, and you need to label them based on what you learnt in phase 1. </p>"+
+  "<p>Press 'n' to begin phase 2</p>",
+  choices: ['n']
+};
+//timeline.push(part1_intermission);
+
+
+
+
+var test_train_procedure = {
+  timeline: [
+    {
+      type: "html-keyboard-response",
+      timeline: [{
+      stimulus: function() {
+
+        if(test_counter==-1){
+
+          counter1 = train_counter;
+          counter2 = train_counter+1;
+          train_counter+=2;
+          var instr = "<p><u>Instructions:</u></p><div align = 'left'><ol><li> We recommend you spend sufficient time on this page. It may also be helpful to take down some notes so that you don't forget the mapping between patterns and labels.</li><br><li>There are "+num_train+" images for each label ("+String(num_train*3)+" in total). Click on arrows to see more images. Click on any image to zoom in. Zoom out your browser window if you see cropped images.</li><br><li>You will also be shown these images in between the test phase to reinforce what you learnt in this phase.</li>";
+          instr+="<li>"+ part1_reference_text +" </li></ol></div>";
+          html_string_A = "<div class = 'container'>Label: <strong>A</strong><div class='multiple-pics' style='margin-top: -40px'>"
+          html_string_B = "<div class = 'container'> Label: <strong>B</strong><div class='multiple-pics' style='margin-top: -40px'>"
+          html_string_C = "<div class = 'container'> Label: <strong>C</strong><div class='multiple-pics' style='margin-top: -40px'>"
+
+          html_string_A_rot += "<div class = 'container'> Label: <strong>A</strong><div class='multiple-pics' style='margin-top: -40px'>";
+          html_string_B_rot += "<div class = 'container'> Label: <strong>B</strong><div class='multiple-pics' style='margin-top: -40px'>";
+          html_string_C_rot += "<div class = 'container'> Label: <strong>C</strong><div class='multiple-pics' style='margin-top: -40px'>";
+
+          for (i=0;i<num_train;i++){
+
+            counter1 = Math.floor(Math.random() * num_train_images);
+            while(y_train[counter1]!=0){
+              counter1 = Math.floor(Math.random() * num_train_images);
+            }
+
+            counter2 = Math.floor(Math.random() * num_train_images);
+            while(y_train[counter2]!=1){
+              counter2 = Math.floor(Math.random() * num_train_images);
+            }
+
+            counter3 = Math.floor(Math.random() * num_train_images);
+            while(y_train[counter3]!=2){
+              counter3 = Math.floor(Math.random() * num_train_images);
+            }
+
+            img1 = parent_dir+part1_type+"/train/train_"+String(counter1)+".png";
+            img2 = parent_dir+part1_type+"/train/train_"+String(counter2)+".png";
+            img3 = parent_dir+part1_type+"/train/train_"+String(counter3)+".png";
+
+            html_string_A += "<div><a href="+img1+" data-lightbox='labA' data-title='Label: A'><img src="+img1+"></img></a></div>";
+            html_string_B += "<div><a href="+img2+" data-lightbox='labB' data-title='Label: B'><img src="+img2+"></img></a></div>";
+            html_string_C += "<div><a href="+img3+" data-lightbox='labC' data-title='Label: C'><img src="+img3+"></img></a></div>";
+
+            img1_rot = parent_dir+"/"+add_type+"/train/train_"+String(counter1)+".png";
+            img2_rot = parent_dir+"/"+add_type+"/train/train_"+String(counter2)+".png";
+            img3_rot = parent_dir+"/"+add_type+"/train/train_"+String(counter3)+".png";
+
+            html_string_A_rot += "<div><a href="+img1_rot+" data-lightbox='labA' data-title='Label: A'><img src="+img1_rot+" ></img></a></div>";
+            html_string_B_rot += "<div><a href="+img2_rot+" data-lightbox='labB' data-title='Label: B'><img src="+img2_rot+" ></img></a></div>";
+            html_string_C_rot += "<div><a href="+img3_rot+" data-lightbox='labC' data-title='Label: C'><img src="+img3_rot+" ></img></a></div>";
+
+          }
+
+          html_string_A += "</div></div>";
+          html_string_B += "</div></div>";
+          html_string_C += "</div></div>";
+
+          html_string_A_rot += "</div></div>";
+          html_string_B_rot += "</div></div>";
+          html_string_C_rot += "</div></div>";
+
+          return instr+html_string_A + html_string_B + html_string_C + "<p>Press 'n' to start phase 2 (testing phase).</p>";
+
+        }
+        let cur_accuracy = num_cor_part1/num_done_part1;
+        let recent_accuracy = recent_cor_part1/reps_single_test;
+        recent_cor_part1=0;
+        let perf_sum = "<h4>Performace Summary:</h4>"+
+        "<p>Part 1 accuracy till now = "+((cur_accuracy)*100)+"%</p>"+
+        "<p>Estimated part 1 bonus if you end part 1 with the same accuracy = $"+p1_bonus(cur_accuracy).toFixed(2)+"</p>"+
+        "<p>Accuracy in last "+reps_single_test+" images = "+((recent_accuracy)*100)+"%</p>";
+
+        if(cur_accuracy <= 0.7 ){
+          perf_sum+="<div align = 'left'><ol><li>"+ part1_reference_text +"</li><br>";
+          best_case_accuracy = (Math.floor(0.8*(reps_test-num_done_part1))+num_cor_part1)/reps_test;
+          if(p1_bonus(best_case_accuracy) > 0)
+          {
+          perf_sum += "<li>If you improve your accuracy on rest of the images to 80%, your overall part 1 accuracy will become "+best_case_accuracy+" which will get you a bonus of $"+String(p1_bonus(best_case_accuracy).toFixed(2))+"!</li><br>";
+        }
+          var instr = "<li>These are the same images shown to you in phase 1. There are "+num_train+" images for each label ("+String(num_train*3)+" in total). Click on arrows to see more images. Click on any image to zoom in. Zoom out your browser window if you see cropped images.</li><br></div>"
+        }
+        else{
+        var instr = "<div align = 'left'><ol><li>These are the same images shown to you in phase 1. You are being shown these again to help you reinforce what you learnt.</li><br> <li>There are "+num_train+" images for each label ("+String(num_train*3)+" in total). Click on arrows to see more images. Click on any image to zoom in. </li> <li>Zoom out your browser window if you see cropped images.</li></ol></div>"
+      }
+        return perf_sum+instr+html_string_A + html_string_B + html_string_C+"<p>Press 'n' to resume phase 2.</p>";
+
+      }}],
+      choices: ['n'],
+      on_load: function(){
+        $('.multiple-pics').slick({
+          infinite: false,
+          draggable: true,
+          slidesToShow: single_frame_num_images,
+          slidesToScroll: single_frame_num_images,
+          arrows: true
+        });
+      },
+      repetitions: 1
+    },
+
+    {
+      type: "image-keyboard-response",
+      data:{
+      exp_type:"normal"},
+      timeline: [{
+      stimulus: function() {
+      test_counter+=1;
+        counter = Math.floor(Math.random() * num_test_images);
+        image_type = Math.floor(Math.random() * 3);
+        img_ind[test_counter] = counter;
+        y_actual[test_counter] = y_test[counter];
+        x_type[test_counter] = image_type;
+
+        if (image_type==0){//Normal image
+        reps_normal+=1;
+        return parent_dir+part1_type+"/test/test_"+String(counter)+".png";
+        }
+        else if(image_type==1){//Adversarial image
+        reps_adv+=1;
+        y_adv[test_counter] = y_adv_target[counter];
+        return parent_dir+part1_type+"/test_01/test_01_"+String(counter)+".png";
+        }
+        else
+        {//Noisy image
+        reps_noisy+=1;
+        return parent_dir+part1_type+"/test_02/test_02_"+String(counter)+".png";
+        }
+
+      }}],
+      prompt: function() {return "<p>Press A,B or C to indicate the label for this image.</p><p>"+(reps_test-test_counter-1)+" images left to be labelled.</p> <p>(This image may take some time to load if the internet connection is slow.)</p>"},
+      choices: ['A', 'B', 'C'],
+      repetitions: reps_single_test,
+      on_finish: function(data) {
+        num_done_part1+=1;
+        if(data['key_press']-65==y_actual[test_counter]){
+          num_cor_part1+=1;
+          recent_cor_part1+=1;
+        }
+      }
+
+    }
+
+
+  ],
+  repetitions: sets_test
+}
+
+
+
+var test_procedure = {
+  type: "image-keyboard-response",
+  data:{
+  exp_type:"normal"},
+  timeline: [{
+  stimulus: function() {
+  test_counter+=1;
+    counter = Math.floor(Math.random() * num_test_images);
+    image_type = Math.floor(Math.random() * 3);
+    img_ind[test_counter] = counter;
+    y_actual[test_counter] = y_test[counter];
+    x_type[test_counter] = image_type;
+
+    if (image_type==0){//Normal image
+    reps_normal+=1;
+    return parent_dir+part1_type+"/test/test_"+String(counter)+".png";
+    }
+    else if(image_type==1){//Adversarial image
+    reps_adv+=1;
+    y_adv[test_counter] = y_adv_target[counter];
+    return parent_dir+part1_type+"/test_01/test_01_"+String(counter)+".png";
+    }
+    else
+    {//Noisy image
+    reps_noisy+=1;
+    return parent_dir+part1_type+"/test_02/test_02_"+String(counter)+".png";
+    }
+
+  }}],
+  prompt: function() {return "<p>Press A,B or C to indicate the label for this image.</p><p>"+(reps_test-test_counter-1)+" images left to be labelled.</p> <p>(This image may take some time to load if the internet connection is slow.)</p>"},
+  choices: ['A', 'B', 'C'],
+  repetitions: reps_test,
+
+
+}
+
+    var show_performance = {
+  type: "html-keyboard-response",
+  timeline: [{
+  stimulus: function() {
+    var resp = jsPsych.data.get().filter({trial_type: 'image-keyboard-response'}).select('key_press').values;
+      y_response = resp;
+      num_correct_total = 0;
+      num_correct_normal = 0;
+      num_correct_adv = 0;
+      num_correct_noisy = 0;
+      for(i=0;i<reps_test;i++)
+      {
+      if(y_response[i]==y_actual[i]+65)
+      {
+      num_correct_total+=1;
+      if(x_type[i] == 0){//Normal
+      num_correct_normal +=1;
+      }
+      else if(x_type[i] ==1){//Adv
+      num_correct_adv +=1;
+      }
+      else{//Noisy
+      num_correct_noisy +=1;
+      }
+      }
+      }
+      avg_correct_total = num_correct_total/Math.max(reps_test,0.1);
+      avg_correct_normal = num_correct_normal/Math.max(reps_normal,0.1);
+      avg_correct_adv = num_correct_adv/Math.max(reps_adv,0.1);
+      avg_correct_noisy = num_correct_noisy/Math.max(reps_noisy,0.1);
+
+      summary_record = person_id+","+assignment_id+","+hit_id+","+reps_test+","+reps_normal+","+reps_noisy+","+reps_adv+","+num_correct_total+","+num_correct_normal+","+num_correct_noisy+","+num_correct_adv+","+avg_correct_total+","+avg_correct_normal+","+avg_correct_noisy+","+avg_correct_adv;
+
+      return "<p>You have successfully finished part 1!</p>"+
+      "<p>Part 1 performance summary:</p>"+
+      "<p>Number of total images correctly labeled = "+String(num_correct_total)+" out of "+reps_test +" ("+String(100*avg_correct_total)+"%) .</p>"+
+      "<p>Part 1 bonus = $"+String(p1_bonus(num_cor_part1/reps_test))+"</p>"+
+      "<p>Note: Part 2 of this task is still remaning. Also, you will be shown a verification code at the end of this task. To get paid, you need to enter that in your mechanical turk interface, and also need to finish part 2. </p>"+
+      //"Number of normal images correctly labeled = "+String(num_correct_normal)+" out of "+reps_normal +" ("+String(100*avg_correct_normal)+"%) .<br>"+
+      //"Number of adversarial images correctly labeled = "+String(num_correct_adv)+" out of "+reps_adv +" ("+String(100*avg_correct_adv)+"%) .<br>"+
+      //"Number of images with random noise correctly labeled = "+String(num_correct_noisy)+" out of "+reps_noisy +" ("+String(100*avg_correct_noisy)+"%) .</p>"+
+    "<p>Press 'n' to begin part 2</p>";
+
+  }}],
+  choices: ['n']
+
+}
+
+timeline.push(test_train_procedure);
+timeline.push(show_performance);
+
+
+
+
+/*Part 2*/
+
+
+
+
+var y_response2 = Array.apply(null, Array(reps_test)).map(Number.prototype.valueOf,0);
+var permutation_map = Array.apply(null, Array(reps_test)).map(Number.prototype.valueOf,0);
+
+
+
+var instructions2 = {
+  type: "html-keyboard-response",
+  stimulus: function() {
+    reps_training_rem = reps_train;
+    for(i=0; i<reps_test;i++){
+      permutation_map[i]=i;
+    }
+    shuffle(permutation_map);
+
+    train_counter=0;
+    test_counter = -1;
+    reps_adv = 0;
+    reps_noisy = 0;
+    reps_normal = 0;
+
+      counter1 = 200;
+    counter2 = 220;
+
+    img1 = parent_dir+"/"+add_type+"/train/train_"+String(counter1)+".png";
+    img2 = parent_dir+"/"+add_type+"/train/train_"+String(counter2)+".png";
+  return "<p><strong>Part 2</strong>: This part is similar to part 1, with different set of images.</p>"+
+  "<p>In phase 1 (learning phase), you will be shown images along with labels, and you should try to" +
+  " associate the patterns in the images with labels.</p>" +
+  "<p>In phase 2 (testing phase), you will be shown images without label, and you need to predict the right label based on what you " +
+  " learnt in phase 1.</p><p> Sample image:</p>" +
+  "<img src="+img1+"></img>" +
+  "<p>Label: <strong>"+String.fromCharCode(65+y_train[counter1])+"</strong></p>";},
+  choices: ['n'],
+  prompt: "<p><br>Press 'n' on your keyboard to begin</p>",
+  post_trial_gap: 0
+};
+timeline.push(instructions2);
+
+var part2_train_instructions = {
+  type: "html-keyboard-response",
+  stimulus: "<p><u>Phase 1 (learning) Instructions</u></p>"+
+  "<div align = 'left'><ol><li>In this phase, you will be shown images along with labels, and you should try to" +
+  " associate the patterns in the images with labels. We recommend that you spend sufficient time on this phase as it will help improve your performance in phase 2 (testing). Remember, we give performance based bonus for this task!</li><br><li> It may also be helpful to take down some notes so that you don't forget the mapping between patterns and labels. </li><br>" +
+  "<li>You will also be shown these images in between the test phase to reinforce what you learnt in phase 1.</li><br>"+
+  "<li>"+ part2_reference_text + "</li><br></ol></div>"+
+  "<p>Press 'n' to begin phase 1</p>",
+  choices: ['n']
+};
+timeline.push(part2_train_instructions);
+
+
+var train_procedure2 = {
+  type: "html-keyboard-response",
+  timeline: [{
+  stimulus: function() {
+
+
+    counter1 = train_counter;
+    counter2 = train_counter+1;
+    train_counter+=2;
+    var instr = "<p><u>Instructions:</u></p><div align = 'left'><ol><li>We recommend you spend sufficient time on this page. It may also be helpful to take down some notes so that you don't forget the mapping between patterns and labels.</li><br><li>There are "+num_train+" images for each label ("+String(num_train*3)+" in total). Click on arrows to see more images. Click on any image to zoom in. </li> <br> <li>Zoom out your browser window if you see cropped images.</li></ol></div>";
+
+    return instr+html_string_A_rot + html_string_B_rot + html_string_C_rot + "<p>Press 'n' to start phase 2 (testing phase).</p>";
+
+
+
+  }}],
+  choices: ['n'],
+  on_load: function(){
+    $('.multiple-pics').slick({
+      infinite: false,
+      draggable: true,
+      slidesToShow: single_frame_num_images,
+      slidesToScroll: single_frame_num_images,
+      arrows: true
+    });
+  },
+  repetitions: 1
+}
+
+//timeline.push(train_procedure2);
+
+var part2_intermission = {
+  type: "html-keyboard-response",
+  stimulus: "<p><u>Phase 2 (Testing) Instructions</u></p>"+
+  "<p>Phase 1 (learning) ends here. In phase 2, you will be shown "+reps_test+" images, and you need to label them based on what you learnt in phase 1. </p>"+
+  "<p>Press 'n' to begin phase 2</p>",
+  choices: ['n']
+};
+//timeline.push(part2_intermission);
+
+var test_train_procedure2 = {
+  timeline: [
+    {
+      type: "html-keyboard-response",
+      timeline: [{
+      stimulus: function() {
+
+        if(test_counter==-1){
+
+          counter1 = train_counter;
+          counter2 = train_counter+1;
+          train_counter+=2;
+          var instr = "<p><u>Instructions:</u></p><div align = 'left'><ol><li>We recommend you spend sufficient time on this page. It may also be helpful to take down some notes so that you don't forget the mapping between patterns and labels.</li><br><li>There are "+num_train+" images for each label ("+String(num_train*3)+" in total). Click on arrows to see more images. Click on any image to zoom in. </li><br> <li>Zoom out your browser window if you see cropped images.</li><br><li>You will also be shown these images in between the test phase to reinforce what you learnt in phase 1.</li><br>";
+          instr+="<li>"+ part2_reference_text + "</li></ol></div>";
+
+          return instr+html_string_A_rot + html_string_B_rot + html_string_C_rot+"<p>Press 'n' to start phase 2 (testing phase).</p>";
+
+        }
+        let cur_accuracy = num_cor_part2/num_done_part2;
+        let recent_accuracy = recent_cor_part2/reps_single_test;
+        recent_cor_part2=0;
+        let perf_sum = "<h4>Performace Summary:</h4>"+
+        "<p>Part 2 accuracy till now = "+((cur_accuracy)*100)+"%</p>"+
+        "<p>Estimated part 2 bonus if you end part 2 with the same accuracy = $"+p2_bonus(cur_accuracy).toFixed(2)+"</p>"+
+        "<p>Accuracy in last "+reps_single_test+" images = "+((recent_accuracy)*100)+"%</p>";
+
+        if(cur_accuracy <= 0.9 ){
+          perf_sum+="<div align = 'left'><ol><li>"+ part2_reference_text + "</li><br>";
+          best_case_accuracy = (Math.floor(0.99*(reps_test-num_done_part2))+num_cor_part2)/reps_test;
+          if(p2_bonus(best_case_accuracy) > 0)
+          {
+          perf_sum += "<li>If you improve your accuracy on rest of the images to 99%, your overall part 2 accuracy will become "+best_case_accuracy+" which will get you a bonus of $"+String(p2_bonus(best_case_accuracy).toFixed(2))+" in part 2!</li><br>";
+        }
+          var instr = "<li>These are the same images shown to you in phase 1. There are "+num_train+" images for each label ("+String(num_train*3)+" in total). Click on arrows to see more images. Click on any image to zoom in. </li><br> <li>Zoom out your browser window if you see cropped images.</li></ol></div>"
+        }
+        else{
+        var instr = "<div align = 'left'><ol><li>These are the same images shown to you in phase 1. You are being shown these again to help you reinforce what you learnt.</li><br> <li>There are "+num_train+" images for each label ("+String(num_train*3)+" in total). Click on arrows to see more images. Click on any image to zoom in. </li><br> <li>Zoom out your browser window if you see cropped images.</li></ol></div>"
+      }
+        return perf_sum+instr+html_string_A_rot + html_string_B_rot + html_string_C_rot+"<p>Press 'n' to start phase 2 (testing phase).</p>";
+
+      }}],
+      choices: ['n'],
+      on_load: function(){
+        $('.multiple-pics').slick({
+          infinite: false,
+          draggable: true,
+          slidesToShow: single_frame_num_images,
+          slidesToScroll: single_frame_num_images,
+          arrows: true
+        });
+      },
+      repetitions: 1
+    },
+
+    {
+      type: "image-keyboard-response",
+      data:{
+      exp_type:"rotated"},
+      timeline: [{
+      stimulus: function() {
+      test_counter+=1;
+        counter = img_ind[permutation_map[test_counter]];
+        image_type = x_type[permutation_map[test_counter]];
+
+
+        if (image_type==0){//Normal image
+        reps_normal+=1;
+        return parent_dir+"/"+add_type+"/test/test_"+String(counter)+".png";
+        }
+        else if(image_type==1){//Adversarial image
+        reps_adv+=1;
+        y_adv[test_counter] = y_adv_target[counter];
+          return parent_dir+"/"+add_type+"/test_01/test_01_"+String(counter)+".png";
+        }
+        else
+        {//Noisy image
+        reps_noisy+=1;
+          return parent_dir+"/"+add_type+"/test_02/test_02_"+String(counter)+".png";
+        }
+
+      }}],
+      prompt: function() {return "<p>Press A,B or C to indicate the label for this image.</p><p>"+(reps_test-test_counter-1)+" images left to be labelled</p>. <p>(The image may take some time load if the internet connection is slow.)</p>"},
+      choices: ['A', 'B', 'C'],
+      repetitions: reps_single_test,
+      on_finish: function(data) {
+        num_done_part2+=1;
+        if(data['key_press']-65==y_actual[permutation_map[test_counter]]){
+          //console.log("right!");
+          num_cor_part2+=1;
+          recent_cor_part2+=1;
+        }
+
+    }
+}
+
+  ],
+  repetitions: sets_test
+}
+
+
+var test_procedure2 = {
+  type: "image-keyboard-response",
+  data:{
+  exp_type:"rotated"},
+  timeline: [{
+  stimulus: function() {
+  test_counter+=1;
+    counter = img_ind[permutation_map[test_counter]];
+    image_type = x_type[permutation_map[test_counter]];
+
+
+    if (image_type==0){//Normal image
+    reps_normal+=1;
+    return parent_dir+"/"+add_type+"/test/test_"+String(counter)+".png";
+    }
+    else if(image_type==1){//Adversarial image
+    reps_adv+=1;
+    y_adv[test_counter] = y_adv_target[counter];
+      return parent_dir+"/"+add_type+"/test_01/test_01_"+String(counter)+".png";
+    }
+    else
+    {//Noisy image
+    reps_noisy+=1;
+      return parent_dir+"/"+add_type+"/test_02/test_02_"+String(counter)+".png";
+    }
+
+  }}],
+  prompt: function() {return "<p>Press A,B or C to indicate the label for this image.</p><p>"+(reps_test-test_counter-1)+" images left to be labelled</p>. <p>(The image may take some time load if the internet connection is slow.)</p>"},
+  choices: ['A', 'B', 'C'],
+  repetitions: reps_test
+
+}
+
+
+
+    var show_performance2 = {
+  type: "html-keyboard-response",
+  timeline: [{
+  stimulus: function() {
+    var resp = jsPsych.data.get().filter({trial_type: 'image-keyboard-response'}).select('key_press').values;
+      for(i=0;i<reps_test;i++){
+        y_response2[permutation_map[i]]=resp[i+reps_test];
+      }
+      num_correct_total2 = 0;
+      num_correct_normal2 = 0;
+      num_correct_adv2 = 0;
+      num_correct_noisy2 = 0;
+      for(i=0;i<reps_test;i++)
+      {
+      if(y_response2[i]==y_actual[i]+65)
+      {
+      num_correct_total2+=1;
+      if(x_type[i] == 0){//Normal
+      num_correct_normal2 +=1;
+      }
+      else if(x_type[i] ==1){//Adv
+      num_correct_adv2 +=1;
+      }
+      else{//Noisy
+      num_correct_noisy2 +=1;
+      }
+      }
+      }
+      avg_correct_total2 = num_correct_total2/Math.max(reps_test,0.1);
+      avg_correct_normal2 = num_correct_normal2/Math.max(reps_normal,0.1);
+      avg_correct_adv2 = num_correct_adv2/Math.max(reps_adv,0.1);
+      avg_correct_noisy2 = num_correct_noisy2/Math.max(reps_noisy,0.1);
+
+      overall_accuracy = (avg_correct_total+avg_correct_total2)/200;
+
+
+      summary_record += ","+num_correct_total2+","+num_correct_normal2+","+num_correct_noisy2+","+num_correct_adv2+","+avg_correct_total2+","+avg_correct_normal2+","+avg_correct_noisy2+","+avg_correct_adv2;
+
+      part1_bonus = p1_bonus(num_cor_part1/reps_test);
+      part2_bonus = p2_bonus(num_cor_part2/reps_test);
+
+      return "<p>You have successfully finished part 2!</p>"+
+      "<p>Overall performance summary:</p>"+
+      "<p>Number of total images correctly labeled in part 1 = "+String(num_correct_total)+" out of "+reps_test +" ("+avg_correct_total+"%) .<br>"+
+      "Number of total images correctly labeled in part 2 = "+String(num_correct_total2)+" out of "+reps_test +" ("+avg_correct_total2+"%) .<br>"+
+      "Part 1 bonus = $"+String(part1_bonus)+"<br>"+
+      "Part 2 bonus = $"+String(part2_bonus)+"<br>"+
+      "Total bonus = $"+String(part1_bonus+part2_bonus)+
+      "<p>Note: You will recieve a verification code at the end of this task. To get paid, you need to enter that in your mechanical turk interface. </p>"+
+      //"Number of total images correctly labeled = "+String(num_correct_total2+num_correct_total)+" out of "+(2*reps_test) +" ("+((avg_correct_total+avg_correct_total2)/2)+"%) .</p>"+
+      //"Number of normal images correctly labeled = "+String(num_correct_normal2)+" out of "+reps_normal +" ("+avg_correct_normal2+"%) .<br>"+
+      //"Number of adversarial images correctly labeled = "+String(num_correct_adv2)+" out of "+reps_adv +" ("+avg_correct_adv2+"%) .<br>"+
+      //"Number of images with random noise correctly labeled = "+String(num_correct_noisy2)+" out of "+reps_noisy +" ("+avg_correct_noisy2+"%) .</p>"+
+      "<p>Press 'n' for next page</p>";
+
+  }}],
+  choices: ['n']
+
+}
+
+timeline.push(test_train_procedure2);
+timeline.push(show_performance2);
+
+var feedback = {
+  type: 'survey-text',
+  questions: [{prompt: "If you have any feedback for us, you can write it here.", rows: 20, columns: 80}],
+  on_finish: function(data){
+      turkerCode = Math.floor(Math.random() * 1000000);
+      jsPsych.endExperiment('Thanks for finishing the task! Please enter this verification code in your mechanical turk interface: <strong>'+turkerCode+'</strong>. We will use it to verify that you finished the task.<br> You will get $'+String(part1_bonus+part2_bonus)+' as bonus, and $3 as base amount for this task, once you enter the code.<br> You can close this window now.');
+
+  }
+};
+
+timeline.push(feedback);
+
+
+
+
+/* start the experiment */
+jsPsych.init({
+  timeline: timeline,
+  show_progress_bar: true,
+  on_finish: function() {
+
+    //if(hit_id == "7079")
+    if(true)
+    {
+
+    // workerID
+    //jsPsych.data.displayData();
+    var feedback_data = jsPsych.data.get().filter({trial_type: 'survey-text'}).select('responses').values;
+    console.log('The experiment is over!'+feedback_data);
+    var response_csv = "";
+    //Format: y_actual, x_type, y_adv, y_response, y_response2, resp_time1, resp_time2, lab_ind, perm_ind, img_ind;
+    let resp_times = jsPsych.data.get().filter({trial_type: 'image-keyboard-response'}).select('rt').values;
+    let total_response_time = jsPsych.data.get().select('rt').sum();
+    for(i=0;i<reps_test;i++){
+      let row = y_actual[i]+","+x_type[i]+","+y_adv[i]+ "," + (y_response[i] - 65) + "," +(y_response2[i]-65)+","+resp_times[i]+","+resp_times[i+reps_test]+","+labind+","+permind+","+img_ind[i]+ "\r\n";
+      response_csv += row;
+    }
+
+    tstamp = Math.floor(Date.now() / 1000);
+
+
+
+    saveData(tstamp+"_"+turkerCode+"_raw_data", jsPsych.data.get().csv());
+    saveData(tstamp+"_"+turkerCode+"_data", response_csv);
+    saveData("summary_data", summary_record+","+total_response_time+","+part1_bonus+","+part2_bonus+","+turkerCode+"\r\n");
+    saveData("feedback_data", tstamp+", "+person_id+", "+feedback_data+"\r\n");
+  }
+  }
+});
+</script>
+</html>
